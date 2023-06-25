@@ -3,7 +3,8 @@
     {
       "name": "weixincloud",
       "domain": "",
-      "ip": ""
+      "ip": "",
+      "containerId": "fe977381ca64a52c26f33dc3658437789cd3d7a61de34de19e28a1e15d16dc3c"
     }
   ],
   "config": {
