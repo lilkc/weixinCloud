@@ -1,0 +1,504 @@
+﻿<?php
+include "wechat.class.php";
+$options = array(
+        'token'=>'xingmai123', //填写你设定的key
+		'encodingaeskey'=>'ax2zT1RW3BMIUDbDCKQpRIF35ENZcI1IBWofZIfHTkq', //填写加密用的EncodingAESKey
+ 		//'appid'=>'wxacd745c6cf5cd89a', //填写高级调用功能的app id
+ 		//'appsecret'=>'6fae49d5b3c115b080db84a0fb514bdd' //我的订阅号密钥
+		//'appid'=>'wx48a05834e31e9b10', //填写高级调用功能的app id
+ 		//'appsecret'=>'dcf5f2cb43354398a41902ca18e4ec77' //测试的密钥
+		'appid'=>'wxd841d1104a1f3ece', //填写高级调用功能的app id
+ 		'appsecret'=>'9debafb0fef8bf22aa720bd09fdf998e' //公司密钥
+
+		//PA5oJA19gjtompdFemF020afxdgh-XrFAiSwDnStZDg 模板ID
+		//oWytt1Ftx9t7H_IfVTWU_rdNpRQA   openid
+		//o1Ugat2Zv51NYbjnawZjIRJ3l0C0   openid
+		//o1Ugat0q_KXbhTiSE1NKhoPFXuE8   openid
+		//o1UgatxGBHRdlNjR1QFxtJeeZblw   openid
+
+	);
+
+$weObj = new Wechat($options);
+if (isset($_GET['sceneValue']))
+	{
+		//echo $_GET['sceneValue'];
+		$type=0;
+		$result = $weObj->getQRCode($_GET['sceneValue'],$type);
+		/*foreach($result as $k => $v)
+					{
+					echo $k."------".$v."<br>";
+					}*/
+		$ticket = $result['url'];
+		//$finalResult = $weObj->getQRUrl($ticket);
+		echo $ticket;
+       /* $data = [
+			"touser"=>"o1Ugat2Zv51NYbjnawZjIRJ3l0C0",
+			"template_id"=>"PA5oJA19gjtompdFemF020afxdgh-XrFAiSwDnStZDg",			
+			"topcolor"=>"#FF0000",
+			"data"=>[
+				"first"=> [
+					"value"=>"你的血压测试结果",
+					"color"=>"#173177"	 //参数颜色
+					],
+				"keyword1"=>[
+					"value"=>"123mmHg",
+					"color"=>"#173177"
+					],
+				"keyword2"=>[
+					"value"=>"85mmHg",
+					"color"=>"#173177"
+					],
+				"keyword3"=>[
+					"value"=>"75次/分",
+					"color"=>"#173177"
+					],
+				"keyword4"=>[
+					"value"=>"血压正常",
+					"color"=>"#173177"
+					],
+				"remark"=>[
+					"value"=>"谢谢参与",
+					"color"=>"#173177"
+					]
+				]
+			];
+		$result = $weObj->sendTemplateMessage($data);
+		var_dump( $result);*/
+		exit();
+	}
+//$weObj->valid();//明文或兼容模式可以在接口验证通过后注释此句，但加密模式一定不能注释，否则会验证失败
+$type = $weObj->getRev()->getRevType();
+switch($type) {
+	case Wechat::MSGTYPE_TEXT:
+		   /* $receivedContent = $weObj->getRevContent();
+	        if($receivedContent == "创建菜单")
+	        {
+			  $result =	$weObj->createMenu($newmenu);
+			  echo $result;
+	        }*/
+			$weObj->text('感谢您关注星脉医疗！详情请登录www.hingmed.com.')->reply();
+			exit;
+			break;
+	case Wechat::MSGTYPE_EVENT:	
+		    $result = $weObj->getRevEvent();
+	        if($result)
+			{
+				if($result['event'] == Wechat::EVENT_SCAN)
+				{	
+					$reading = intval($result['key']);
+					$sys = 0;
+					$dia = 0;
+					$hr = 0;
+					if($reading < 80000)
+					{
+						$dia = $reading & 0x000000ff;
+						$sys = $reading >> 8;	
+						$text ="您的血压为\n";
+						$text.="收缩压：".$sys."mmHg\n";
+						$text.="舒张压：".$dia."mmHg\n";
+						date_default_timezone_set("Asia/Shanghai");
+						$text.="时间：". date("Y-m-d H:i") ."\n";
+						$weObj->text($text)->reply();
+					}
+					else
+					{
+						$hr = $reading & 0x000000ff;
+						$reading = $reading >> 8;	
+						$dia = $reading & 0x000000ff;
+						$sys = $reading >> 8;
+						$text ="您的血压为\n";
+						$text.="收缩压：".$sys."mmHg\n";
+						$text.="舒张压：".$dia."mmHg\n";
+						$text.="心率：".$hr."bpm\n";
+						date_default_timezone_set("Asia/Shanghai");
+						$text.="时间：". date("Y-m-d H:i") ."\n";
+						$weObj->text($text)->reply();
+					}
+					$weObj->savePressure($weObj->getRevFrom(),$sys,$dia,$hr);
+					break;
+				  }
+				
+				if($result['event'] == Wechat::EVENT_SUBSCRIBE && $result['key'] == "")
+				{
+					$weObj->text('星脉医疗感谢您的关注！了解更多请登录www.hingmed.com.')->reply();	
+					break;
+				}
+				if($result['event'] == Wechat::EVENT_SUBSCRIBE && $result['key'] != "")
+				{ 
+					$tempString = $result['key'];
+					$tempString = str_replace("qrscene_","",$tempString);
+					$reading = intval($tempString);
+					$sys = 0;
+					$dia = 0;
+					$hr = 0;
+					if($reading < 80000)
+					{
+						$dia = $reading & 0x000000ff;
+						$sys = $reading >> 8;
+						$text ="星脉医疗感谢您的关注！\n";					
+						$text.="您的血压为\n";
+						$text.="收缩压：".$sys."mmHg\n";
+						$text.="舒张压：".$dia."mmHg\n";
+						date_default_timezone_set("Asia/Shanghai");
+						$text.="时间：". date("Y-m-d H:i") ."\n";
+						$weObj->text($text)->reply();
+					}
+					else
+					{
+						$hr = $reading & 0x000000ff;
+						$reading = $reading >> 8;
+						$dia = $reading & 0x000000ff;
+						$sys = $reading >> 8;
+						$text ="星脉医疗感谢您的关注！\n";	
+						$text.="您的血压为\n";
+						$text.="收缩压：".$sys."mmHg\n";
+						$text.="舒张压：".$dia."mmHg\n";
+						$text.="心率：".$hr."bpm\n";
+						date_default_timezone_set("Asia/Shanghai");
+						$text.="时间：". date("Y-m-d H:i") ."\n";
+						$weObj->text($text)->reply();
+					}
+					$weObj->savePressure($weObj->getRevFrom(),$sys,$dia,$hr);
+					break;
+				}
+				if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_CONTACT_US)
+				{
+					$text = "公司名称：\n";
+                    $text .= "深圳星脉医疗仪器有限公司\n";
+					$text .= "地点：深圳宝安西乡广深公路371号中航飞翔工业厂房4楼西侧\n\n";
+					$text .= "电话：400-883-7020\n";
+					$text .= "网址：www.hingmed.com\n\n";
+					$text .= "邮箱：sales@hingmed.com, service@hingmed.com\n\n";
+					$text .= "腾讯微博：\n";
+					$text .= "http://t.qq.com/hingmedsz\n\n";
+					$text .= "新浪微博：\n";
+					$text .= "http://weibo.com/u/3633348840\n";
+					$weObj->text($text)->reply();
+					break;
+				}	
+
+				if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_READ_US)
+				{
+					$myNews = array(
+						"0"=>array(
+						'Title'=>'关于我们',
+						'Description'=>'星脉医疗专注于动态血压监测的技术与产品。我们致力于建设进取，创新的团队和企业文化。公司的愿景是“让人人血压更',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy51SffYdH8b7ACEPxRHcZClRhNGqq2bSY4I1jIRbXzOnFvw53UIibxL1g/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200765043&idx=1&sn=c07372370f70cd9ba653f87fbacb1bb9&scene=18#rd'
+					),
+				   );
+					$weObj->news($myNews)->reply();	
+					break;
+				  }
+
+				  if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_ABP_MEAN)
+				  {
+					$myNews = array(
+						"0"=>array(
+						'Title'=>'人人都在谈论移动医疗，移动医疗到底是什么？',
+						'Description'=>'移动医疗的本质就是利用互联网来改善，提高现有与医疗有关的工具，流程等各方面事宜。互联网本身是一个信息传递',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE7sVkniaSHtrmjqvyA8Q02cgsdNbEuTOCLGeSWRdsfoR5SMmlMUDdBNwaM33pn1OrKpKl5swwoeJwA/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=204460101&idx=1&sn=0032e89fe17b98d43a77508d29d78375&scene=18#rd'
+					),
+					"1"=>array(
+						'Title'=>'移动医疗可能的发展方向是什么？',
+						'Description'=>'移动医疗的发展方向不是远程诊断。人们也不应该在这方面做过多的努力。疾病的诊断是一个复杂的过程，而且',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE7sVkniaSHtrmjqvyA8Q02cgazPNQJsyp82y53keVkH5muyeu0aAKJYIPib4redRM7jnWLAF35TDtXQ/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=204460101&idx=2&sn=5f504173430dff2031fe473610d26e11&scene=18#rd'
+					),
+					"2"=>array(
+						'Title'=>'移动血压监测的意义',
+						'Description'=>'移动医疗最可能首先发生的环节之一就是慢性病管理，比如高血压患者。主要是因为慢性病诊断治疗本身是一',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE7sVkniaSHtrmjqvyA8Q02cgOJuvohMFaAW4rwmNOG520FG428ecsFj6r5w0lib03YfbCeVLRR01rGw/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=204460101&idx=3&sn=32dc5fcf3c164fb6561713449df8d849&scene=18#rd'
+					),
+				   );
+					$weObj->news($myNews)->reply();	
+					break;
+				  }
+
+				  if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_WBP_BLUETOOTH)
+				  {
+					$myNews = array(
+						"0"=>array(
+						'Title'=>'星脉WBP-02蓝牙动态血压',
+						'Description'=>'WBP-02是星脉医疗旗下的一款方便用户在日常生活状态下随时监测的血压监测仪。与目前市面上的血压计相比，其主',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy53ghzVmPIqyCObj3gL7RjIzdm4Siciby8v9qDkbdjdnkdd472gibWJzWHQ/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756187&idx=1&sn=66b12802a3259d0b4e5298fc8b886eaf&scene=18#rd'
+					),
+					"1"=>array(
+						'Title'=>'星脉WBP-02蓝牙动态血压产品特点',
+						'Description'=>'产品特点：1. 智能升压，每次充气到上次收缩压读数38mmHg以上，提高病人舒适性，减少测量时间。2. 可脱',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5ku9OfBFoQs93RibMvQiboZsicibka1iaqlBj0RjRGuGG20yBYkq3zv9amGQ/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756187&idx=2&sn=391dd5a5021499192b8eb66b8abfb895&scene=18#rd'
+					),
+					"2"=>array(
+						'Title'=>'星脉WBP-02蓝牙动态血压监测仪参数',
+						'Description'=>'名称Hingmed家用动态血压监测仪型号WBP-02测量方法阶梯放气示波法收缩压测量范围40-260 mmH',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5DrTjQNK683Dkfj5I5EOWpKAhGWbtGJXibCQbAvkc4VCgYQH581x8Vew/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756187&idx=3&sn=09c0c494f7465e92e1d48167af602dcc&scene=18#rd'
+					),
+					"3"=>array(
+						'Title'=>'星脉WBP-02蓝牙动态血压配置',
+						'Description'=>'产品配置品名物件编号数量Hingmed WBP-02 监测仪(含中号袖带，22-32MM))1Hingmed',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5Rkxl9KqDC60AHRn6AVQshGh12Q0aSPvndIPlDUPiaqxJufMoexbalYQ/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756187&idx=4&sn=b1725e1d67e6b2f0011dd80e0afd8954&scene=18#rd'
+					),
+				   );
+					$weObj->news($myNews)->reply();	
+					break;
+				  }	
+				 if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_WBP_WIFI)
+				  {
+					$myNews = array(
+						"0"=>array(
+						'Title'=>'星脉WBP-02 Wifi动态血压监测仪',
+						'Description'=>'WBP-02 Wifi动态血压仪是星脉医疗旗下的一款方便用户在医院内部组建自动血压监测网络平台的动态血压监测',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy57JrNsNHZibe5VUqzhl8oWwAbxxgozps9v3VLK8Ybw1YwoIJF2GPPwiaQ/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=401475832&idx=1&sn=421420abf43466774dfe62ebdbe89380&scene=18#rd'
+					),
+					"1"=>array(
+						'Title'=>'星脉WIFI动态血压应用场景之一---病房血压数据网络管理',
+						'Description'=>'帮助实现住院病人的血压数据电子化管理，提高了住院病人血压数据电子化管理的效率，准确性，减轻了医务人员的工作负',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy50VboNrh9l3lib8Twh6lJmib7OaEFS7QAPRW4AYe80eiahkic9u8mCgbsNQ/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=401475832&idx=2&sn=e0c05a781f6b710cd528460b4ff25eac&scene=18#rd'
+					),
+					"2"=>array(
+						'Title'=>'星脉WIFI动态血压仪应用之二---高血压门诊',
+						'Description'=>'现有高血压门诊的血压测量大致两种，在听了病人自己的陈述（包括家庭血压测量历史）后，医生会为病人测量诊室血压',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5icC8veXz369GS8BnH6gF5gP3p5GiaWgcC2UFvbEaCg1AFrY2z0tl51NQ/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=401475832&idx=3&sn=a82aa5c7dd0f2af87c99d3b8eeb19ee4&scene=18#rd'
+					),
+					"3"=>array(
+						'Title'=>'透析血压监测--星脉WIFI血压监测仪应用之三',
+						'Description'=>'2015年11月18日到21日，在珠海国际会展中心，星脉医疗携手血液净化巨头上海和亭及意大利Bellco,',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5WLqNJBo6YLsk2yW4tLuCAsO3qlORgM5xYQtFPdKx7ofztG4hIibnGag/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=401475832&idx=4&sn=db94f28fd4aa62a4da089511c1cb067a&scene=18#rd'
+					),
+				   );
+					$weObj->news($myNews)->reply();	
+					break;
+				  }	
+
+				  if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_ABP)
+				  {					  
+					$myNews = array(
+						"0"=>array(
+						'Title'=>'星脉ABP-03(B) 医用动态血压监测仪',
+						'Description'=>'产品优势：临床级别，测量精准。防干扰能力强，动态环境下测量一致性好。体位记录，医生可掌握测量时体位，以帮助诊',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6x9wuJu4TU4O2JQFsTCoX9amYgcwODsHPAgjqeIKhxuq42YXcuro3Kzj0AIVE4c5WsFtS2A6wluA/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756497&idx=1&sn=89375e2bc885ffced8001bf9759963d7#rd'
+					),
+					"1"=>array(
+						'Title'=>'星脉ABP-03(B)医用动态血压监测仪产品特点',
+						'Description'=>'1）智能升压，每次充气到上次测量读数以上38mmHg以提高病人舒适性，减少测量时间。2）液晶屏同屏显示收缩压',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6x9wuJu4TU4O2JQFsTCoX9btHlEqvr4WFwW3TZskicCHQzEXvQrRYZ8ic1MeCHibia8ibHKXUXgUudTicg/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756497&idx=2&sn=886e91e52ab76c7c13fdb1c8b63210e9#rd'
+					),
+					"2"=>array(
+						'Title'=>'星脉ABP-03(B)医用动态血压监测仪软件特点',
+						'Description'=>'1）软件可以设置收缩压、舒张压、夜间血压、背景、血压阈值等图表颜色，符合操作医生的审美习惯。2）可以任意设置',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6x9wuJu4TU4O2JQFsTCoX9a4mQYSbay9CMHglTlfEicQdujT8uVyoiacTdMUMCqjOGbDZicsugiarokg/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756497&idx=3&sn=203e3b4e13b2f4bf8b8acaafff95ec47#rd'
+					),
+					"3"=>array(
+						'Title'=>'星脉ABP-03(B)医用动态血压规格参数',
+						'Description'=>'名称24小时动态血压监测仪型号ABP-03B，ABP-03测量方法阶梯放气示波法收缩压测量范围40-260 ',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6x9wuJu4TU4O2JQFsTCoX9vGoO7ia4hlyxoicczkzzBn8uHfId7Mw3D8jvjL5WbkHCK9lZcvYamLqg/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756497&idx=4&sn=8b1de3e76d7e2149cc7b0c3966e97980#rd'
+					),
+					"4"=>array(
+						'Title'=>'星脉ABP-03(B)医用动态血压监测仪配置',
+						'Description'=>'ABP-03系统包括：品名数量Hingmed ABPM 监测仪1Hingmed ABPM 软件光盘1Hing',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6x9wuJu4TU4O2JQFsTCoX9FjIzx29dcNTolQH1opRNRk0dSDpl3MBc6l7cCw6AurN3AsEGvHXricg/0',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756497&idx=5&sn=767a16ec5175b98541d186915f89ab75#rd'
+					),
+				   );
+					$weObj->news($myNews)->reply();	
+					break;
+				  }					  
+
+				  if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_WBP_DOCTOR)
+				  {
+					$myNews = array(
+						"0"=>array(
+						'Title'=>'星脉WBP-02A 医用可穿戴动态血压监测仪-全球首款',
+						'Description'=>'产品优势可穿戴式血压计，世界范围内体积最小，重量最轻的臂式血压计.临床级别，测量精准。防干扰能力强，动态环境',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5O5wqtCXc4Gu5QYZMEicjHSwrA9p5jLx6iczBaJPic6tGfPIsxvCoOCSpw/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756406&idx=1&sn=4b02df53758fbf79780c2dac3608bf46&scene=18#rd'
+					),
+					"1"=>array(
+						'Title'=>'星脉WBP-02A 医用可穿戴动态血压配置',
+						'Description'=>'产品配置品名数量Hingmed WBP-02A ABPM 监测仪1Hingmed ABPM 软件光盘1H',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5278B3Gkicm1KnmtPqO8XicWQiaQkEibAxQJAfhOYkGp6M9Ogibviaib3KW3rA/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756406&idx=2&sn=41e8e300d80bed14b43533d6156b9189&scene=18#rd'
+					),
+					"2"=>array(
+						'Title'=>'星脉WBP-02A 医用可穿戴动态血压产品特点',
+						'Description'=>'1） 智能升压，每次充气到上次测量读数以上38mmHg以提高病人舒适性，减少测量时间。2）液晶屏同屏显示收缩',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy575y1nGDg9EInwfwElPSpH6NDybnyMaHJrP8e6iaAiby74X6C4YaLMTWA/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756406&idx=3&sn=08e836e07155d4d467c5d81dd88a1b02&scene=18#rd'
+					),
+					"3"=>array(
+						'Title'=>'星脉WBP-02A 医用可穿戴动态血压规格参数',
+						'Description'=>'名称医用可穿戴24小时动态血压监测仪型号WBP-02A测量方法阶梯放气示波法收缩压测量范围40-260 mm',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy55JwEWAB4B72PC15ibaxiaK6s0bee1WSCszDDv1AGO5cWNbTNxMsRQ0Pw/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756406&idx=4&sn=554ec3903df854a43bfc2000bf7f12f1&scene=18#rd'
+					),
+					"4"=>array(
+						'Title'=>'星脉WBP-02A 医用动态血压监测仪软件特点',
+						'Description'=>'1）软件可以设置收缩压、舒张压、夜间血压、背景、血压阈值等图表颜色，符合操作医生的审美习惯。2）可以任意设置',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz/ptvvenMCuE6cn9UmLeiaNdibUd7NBpGWy5oCyKvrvctwVjmgdFJ5cLxhWmUMs5LH7vWfnBFk9omjkIziaSD0yUtcw/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=200756406&idx=5&sn=15210064638f74667fcb7552acce6516&scene=18#rd'
+					),
+				   );
+					$weObj->news($myNews)->reply();	
+					break;
+				  }	
+
+                  if($result['event'] == Wechat::EVENT_MENU_CLICK && $result['key'] == Wechat::MENU_WBP_GPRS)
+				  {
+					$myNews = array(
+						"0"=>array(
+						'Title'=>'WBP-02 GPRS动态血压仪',
+						'Description'=>'星脉医疗WBP-02 GPRS动态血压监测仪除了具备传统动态血压具有的血压动态监测的功能之外，内置了通讯运营',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz_png/ptvvenMCuE488gibW48bYLEMicDrIdCmT0RwzxFmgNf7FUXAVNY90Mia8o6DOev9f4U2ltvibX2YkpCYjQUjehMRLA/0?wx_fmt=png',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=502883617&idx=1&sn=59b23708960c9bc49433b08050cf6980&chksm=07287a9b305ff38d3f41f936f68a70fe703fd08a49cae96554890ca3de631eabd0f35e776f59#rd'
+					),
+					"1"=>array(
+						'Title'=>'WBP GPRS动态血压仪参数',
+						'Description'=>'名称Hingmed GPRS动态血压监测仪型号WBP-02测量方法阶梯放气示波法收缩压测量范围40-260',
+						'PicUrl'=>'http://mmbiz.qpic.cn/mmbiz_jpg/ptvvenMCuE5QSJDvROIgGgiajk7eeqTgMGcsX7JfEb2Vb3qrbiaknAnguZz7rtq5vLyRTTqQMOaWYkeRGuaOTNhA/0?wx_fmt=jpeg',
+						'Url'=>'http://mp.weixin.qq.com/s?__biz=MzA3MTk1MzEwOQ==&mid=502883617&idx=2&sn=97399484c4d2e5a3fa99fa72c82b2188&chksm=07287a9b305ff38dfa52b52a65a3722e5c43e9962b04e65358b3eca73e254a04582fb7306ff3#rd'
+					),					
+				   );
+					$weObj->news($myNews)->reply();	
+					break;
+				  }	
+		      }
+			break;
+	//case Wechat::MSGTYPE_IMAGE:
+	//		break;	
+	default:
+			$weObj->text('感谢您关注星脉医疗！详情请登录www.hingmed.com.')->reply();			
+			break;
+
+}
+
+
+
+
+ 
+		/*$myfile = fopen("abc.txt", "w");
+              // $txt = $url.'------'.$mid;
+               fwrite($myfile,  'received-----');
+                fclose($myfile);
+
+			/*	$myfile = fopen("ab.txt", "w");
+              // $txt = $url.'------'.$mid;
+               fwrite($myfile,  '123456');
+                fclose($myfile);*/
+
+		$result = $weObj->createMenu(Wechat::$menu);
+		echo $result;
+
+		/*$result = $weObj->getMenu();
+		echo json_encode($result);	
+
+		/*$result = $weObj->deleteMenu();
+		echo $result;
+		
+		/*$result = $weObj->getForeverCount();
+		if($result)
+		{
+          foreach($result as $k => $v)
+			{
+			  echo $k."------".$v."<br>";
+
+			}
+		}
+		$result = $weObj->getForeverList('news',216,1);
+		if($result)
+		{
+			$item = $result['item'];
+			for($i = 0;$i < count($item);$i++)
+			{
+				$detail = $item[$i];
+				$content = $detail['content'];
+				$news = $content['news_item'];
+				for($j = 0; $j < count($news);$j++)
+				{
+                  $newsItem = $news[$j];
+				  foreach($newsItem as $k => $v)
+					{
+					echo $k."------".$v."<br>";
+					}
+				}
+			}
+		}
+
+
+	/*	$con = mysql_connect("39.100.129.160:3306","root","root");
+		if (!$con)
+		{
+			die('Could not connect: ' . mysql_error());
+		}
+		mysql_query("set names 'gb2312'");		
+
+		mysql_select_db("DeskBenchDevice", $con);
+		/*$tempTime = time();
+		mysql_query("INSERT INTO tokenrecord (token,time) VALUES ('123456789789789','{$tempTime}')");
+		mysql_close($con);*/
+
+		/*$exist = "0";
+		$result = mysql_query("SELECT * FROM measure_base WHERE MEASURE_BASE_SERIAL_NO LIKE '$measureBaseNo' ORDER BY ID DESC" );
+		while($row = mysql_fetch_array($result))
+		{ 
+			$exist = "1";
+			$tempString = $row['MEMO1'];
+			if(strlen($tempString) < 1)
+			{
+				$measureBaseNo = $row['MEASURE_BASE_SERIAL_NO'];
+			}else
+				$measureBaseNo = $deviceID;
+				break;
+			}
+			echo $weObj->getAccessToken();*/
+			/*echo "start";
+			$record = "";
+			for($scene_id = 1;$scene_id < 101;$scene_id++)
+			{
+			
+			$type=1;
+			$result = $weObj->getQRCode($scene_id,$type);
+			/*foreach($result as $k => $v)
+			{
+				echo $k."------".$v."<br>";
+			}*/
+					
+			/*$ticket = $result['ticket'];
+			$finalResult = $weObj->getQRUrl($ticket);
+			echo $finalResult;*/
+			/*usleep(50);			
+			$record = $record.',"'.substr($result['url'],strpos($result['url'], '02') + 2,25).'"';
+			}
+
+			$myfile = fopen("aaaa.txt", "w");
+			// $txt = $url.'------'.$mid;
+			fwrite($myfile,  $record);
+			fclose($myfile);*/
+
+			//https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=gQFc8DwAAAAAAAAAAS5odHRwOi8vd2VpeGluLnFxLmNvbS9xLzAyUnJoYzRYckhkSmsxMDAwMGcwM1UAAgQZSRBdAwQAAAAA
+			//http://weixin.qq.com/q/02Rrhc4XrHdJk10000g03U
+			//http://weixin.qq.com/q/02O8gy42rHdJk10000003z
+			//http://weixin.qq.com/q/02lDMt4yrHdJk10000w03D
+			//http://weixin.qq.com/q/02pj2l5VrHdJk10000g03q
+			//http://weixin.qq.com/q/02VkOe47rHdJk10000M03s*/
+
+			/*$long_url = 'https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=gQH17zwAAAAAAAAAAS5odHRwOi8vd2VpeGluLnFxLmNvbS9xLzAycGoybDVWckhkSmsxMDAwMGcwM3EAAgReZxBdAwQAAAAA';
+			//http://weixin.qq.com/q/02pj2l5VrHdJk10000g03q
+
+			 echo $weObj->getShortUrl($long_url);*/
+
+
+?>		
